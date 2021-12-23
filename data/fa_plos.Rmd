@@ -1,0 +1,102 @@
+---
+title: "Factorial Analysis: PLoS Medicine"
+author:
+  - "Edson Souza"
+  - "Wonder Alexandre"
+  - "Jose Storopoli"
+date: "Created: 16/01/2021 updated: `r format(Sys.time(), '%d/%m/%Y')`"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+library(psych)
+library(tidyverse)
+library(sjPlot)
+library(readxl)
+
+df <- read_excel("plos.xlsx")
+df_factor <- df %>% select(starts_with("au_c"))
+```
+
+### Features variation
+```{r ggplot}
+df %>% select(au_c01:au_c14) %>% pivot_longer(everything()) %>% ggplot(., aes(name, value)) + geom_boxplot(outlier.colour = "red", outlier.shape = 1)
+```
+
+# Normality Tests: Shapiro-Wilk, Barlett and KMO
+### Shapiro-Wilk
+```{r shapiro}
+shapiro_df <- function(df) {
+  colunas <- names(df)
+  p_vals <- purrr::map_dbl(colunas, ~{shapiro.test(sample({{ df }}[[{{ .x }}]], 4127))$p.value})
+  if (any(p_vals < 0.05)) {
+    print("One or more S-W tests have p-value less than 0.05")
+  }
+  else{
+    print("None S-W tests have p-value less than 0.05")
+  }
+  invisible(p_vals)
+}
+shapiro_df(df_factor)
+```
+
+### Barlett's test
+```{r Barlett}
+df %>% select(au_c01:au_c10) %>% bartlett.test(.)
+```
+
+### KMO - Kaiser-Meyer-Olkin factor adequacy
+```{r kmo}
+df %>% select(au_c01:au_c10) %>% KMO(.)
+```
+
+## Run `psych`
+### 2 factors
+```{r psych-2}
+res2 <- fa(df_factor, rotate = "varimax", fm = "pa", nfactors = 2, cor="mixed", residuals=TRUE)
+print(res2, digits=2, cut = 0.4)
+```
+
+### 3 factors
+```{r psych-3}
+res3 <- fa(df_factor, rotate = "varimax", fm = "pa", nfactors = 3, cor="mixed",  residuals=TRUE)
+print(res3, digits=2, cut = 0.4)
+```
+
+# Tables `sjPlot`
+### 2 factors
+
+```{r tab_fa2}
+tab_fa(
+  df_factor,
+  rotation = "varimax",
+  method = "pa",
+  nmbr.fctr = 2,
+	fctr.load.tlrn = 0.1,
+	show.cronb = T,
+	digits = 3,
+  #show.comm = TRUE,
+  use.viewer = TRUE,
+  remove.spaces = TRUE)
+
+fa.diagram(res2, simple=TRUE)
+```
+
+### 3 factors
+
+```{r tab_fa3}
+tab_fa(
+  df_factor,
+  rotation = "varimax",
+  method = "pa",
+  nmbr.fctr = 3,
+	fctr.load.tlrn = 0.1,
+	show.cronb = T,
+	digits = 3,
+  #show.comm = TRUE,
+  use.viewer = TRUE,
+  remove.spaces = TRUE)
+
+fa.diagram(res3, simple=TRUE)
+```
